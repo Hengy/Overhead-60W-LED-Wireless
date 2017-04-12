@@ -14,6 +14,8 @@
 #include <nRF24.h>    // nRF24L01+
 
 #include <SPI.h>      // SPI
+
+#include <avr/io.h>
 // -------------------------------------------
 
 // -------------------------------------------
@@ -25,7 +27,7 @@
 #define nRF_IRQ  20    // irq
 
 // LED
-#define LEDpin  6 // LED
+#define LEDpin  10 // LED
 
 // commands
 #define ENCUP   B11001100   // encoder increment
@@ -45,6 +47,27 @@ uint8_t ledON = 0;
 int brightness = 64;
 // -------------------------------------------
 
+
+void setPwmFrequency(int pin, int divisor) {
+  byte mode;
+  if(pin == 5 || pin == 6 || pin == 9 || pin == 10) {
+    switch(divisor) {
+      case 1: mode = 0x01; break;
+      case 8: mode = 0x02; break;
+      case 64: mode = 0x03; break;
+      case 256: mode = 0x04; break;
+      case 1024: mode = 0x05; break;
+      default: return;
+    }
+    if(pin == 5 || pin == 6) {
+      TCCR0B = TCCR0B & 0b11111000 | mode;
+    } else {
+      TCCR1B = TCCR1B & 0b11111000 | mode;
+    }
+  }
+}
+
+
 // -------------------------------------------
 // Arduino setup
 // -------------------------------------------
@@ -54,6 +77,7 @@ void setup()
 
   pinMode(LEDpin, OUTPUT);
   analogWrite(LEDpin, 0);
+  setPwmFrequency(LEDpin, 8);
 
   // nRF24L01+
   nRF24.init(SPI_CLOCK_DIV4,nRF_CE,nRF_CSN,nRF_IRQ);   // Initialize: SPI clock divider, CE pin, CSN pin, IRQ pin.
@@ -91,25 +115,25 @@ void loop()
         while (i > decr) {
           i -= decr;
           analogWrite(LEDpin, i);
-          delay(4);
+          delay(6);
         }
         analogWrite(LEDpin, 0);
       } else {
         ledON = 1;
-        for (int i=0; i<=64; i++) {
+        for (int i=0; i<=128; i++) {
           analogWrite(LEDpin, i);
-          delay(8);
+          delay(10);
         }
-        brightness = 64;
+        brightness = 128;
       }
     } else if (buf[0] == ENCUP) {
-      brightness += 10;
-      if (brightness > 255) {
-        brightness = 255;
+      brightness += 2;
+      if (brightness > 254) {
+        brightness = 254;
       }
       analogWrite(LEDpin, brightness);
     } else if (buf[0] == ENCDWN) {
-      brightness -= 10;
+      brightness -= 2;
       if (brightness < 0) {
         brightness = 0;
       }
