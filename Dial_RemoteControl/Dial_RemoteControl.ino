@@ -1,99 +1,85 @@
-// Hardware setup:
-// Attach a rotary encoder with output pins to A2 and A3.
-// The common contact should be attached to ground.
-
+// -------------------------------------------
+// Library includes
+// -------------------------------------------
 #include <RotaryEncoder.h>
 
-#include <nRF24.h>
+#include <nRF24.h>    // nRF24L01+
 
+#include <SPI.h>      // SPI
+// -------------------------------------------
+
+// -------------------------------------------
+// Definitions
+// -------------------------------------------
 // Setup a RoraryEncoder for pins A2 and A3:
 RotaryEncoder encoder(A2, A3);
 
-const uint8_t ledPin = 6;
+int pos = 0;  // encoder postion
 
-uint8_t ledON = 0;
-int brightness = 1024;
-uint16_t inc = 128;
+// nRF24L01+ pins
+#define nRF_CE   8    // chip enable
+#define nRF_CSN  9    // chip select
+#define nRF_IRQ  10    // irq
 
-uint8_t btnPressed = 0;
+uint8_t btnPressed = 0; // btn pressed flag
 
-uint32_t sTime;
-uint32_t cTime;
+uint32_t btnPTime;  // time of last btn press
+uint32_t btnCTime;  // current time
+// -------------------------------------------
 
+// -------------------------------------------
+// Arduino setup
+// -------------------------------------------
 void setup()
 {
   Serial.begin(115200);
-  Serial.println("SimplePollRotator example for the RotaryEncoder library.");
-
-  pinMode(ledPin, OUTPUT);
-  analogWrite(ledPin, 0);
 
   // You may have to modify the next 2 lines if using other pins than A2 and A3
   PCICR |= (1 << PCIE1);    // This enables Pin Change Interrupt 1 that covers the Analog input pins or Port C.
   PCMSK1 |= (1 << PCINT10) | (1 << PCINT11);  // This enables the interrupt for pin 2 and 3 of Port C.
 
-  attachInterrupt(0, btnISR, RISING);
+  attachInterrupt(0, btnISR, RISING); // encoder middle btn interrupt
 }
 
+
+// -------------------------------------------
 // ISR for encoder pin change
+// -------------------------------------------
 ISR(PCINT1_vect) {
-  encoder.tick(); // just call tick() to check the state.
+  encoder.tick();
 }
 
+
+// -------------------------------------------
 // ISR for encoder switch
+// -------------------------------------------
 void btnISR() {
   btnPressed = 1;
 }
 
-// Read the current position of the encoder and print out when changed.
+
+// -------------------------------------------
+// Arduino main loop
+// -------------------------------------------
 void loop()
 {
-  static int pos = 0;
-
+  // encoder rotation
   int newPos = encoder.getPosition();
-  if (pos != newPos) {
-    if (newPos > pos) {
-      brightness += inc;
-    } else if (newPos < pos) {
-      brightness -= inc;
+  if (pos != newPos) {  // position change
+    if (newPos > pos) { // positive (CW) change
+      
+    } else if (newPos < pos) {  // negative (CCW) change
+      
     }
-    if (brightness > 4095) {
-      brightness = 4095;
-    } else if (brightness < 0) {
-      brightness = 0;
-    }
-    Serial.println(brightness/16);
     pos = newPos;
   }
 
-  sTime = millis();
-  if (btnPressed && (sTime - cTime > 250)) {
-    if (ledON) {
-      ledON = 0;
-      int i = brightness / 16;
-      uint8_t offSpeed = (i / 64) + 1;
-      while (i >= 0) {
-        analogWrite(ledPin, i);
-        i -= offSpeed;
-        delay(3);
-      }
-    } else {
-      ledON = 1;
-      brightness = 1024;
-      for (int i=0; i < 64; i++) {
-        analogWrite(ledPin, i);
-        delay(8);
-      }
-    }
+  // encoder middle btn
+  btnPTime = millis(); // get current
+  if (btnPressed && (btnPTime - btnCTime > 250)) {  // if btn was pressed, not within 250ms of last press
     btnPressed = 0;
-    cTime = millis();
-  } else if (btnPressed) {
+    btnCTime = millis();
+  } else if (btnPressed) {  // ignore btn presses within 250ms of last press (software debounce)
     btnPressed = 0;
-  }
-
-  if (ledON) {
-    analogWrite(ledPin, brightness/16);
-  } else {
-    analogWrite(ledPin, 0);
   }
 }
