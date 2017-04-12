@@ -4,6 +4,8 @@
 
 #include <RotaryEncoder.h>
 
+#include <nRF24.h>
+
 // Setup a RoraryEncoder for pins A2 and A3:
 RotaryEncoder encoder(A2, A3);
 
